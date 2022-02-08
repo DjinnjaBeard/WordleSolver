@@ -1,10 +1,8 @@
-
-
 from collections import defaultdict
 
 import random
 
-from wordle import (
+from . wordle import (
 		get_letter_frequencies,
 		logging,
 		english_dictionary,
