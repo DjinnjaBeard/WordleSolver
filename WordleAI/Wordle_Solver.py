@@ -1,7 +1,5 @@
 from collections import defaultdict
 
-import random
-
 from WordleAI import (
 		get_letter_frequencies,
 		logging,
@@ -9,6 +7,8 @@ from WordleAI import (
 		LetterType,
 		letter_type_names,
 		alpha_set,
+		random,
+		BEST_STARTING_WORDS
 
 	)
 
@@ -21,14 +21,16 @@ from assets.WordleModels import (
 
 from utils import (
 		write_json_cache,
-		total_permutations
+		valid_words,
+		valid_words_given_slots,
+		total_permutations,
 	)
 
 from assets import (
 	build_known_anagrams,
-	valid_words,
-	valid_words_given_slots,
-	BEST_WEIGHTS_PATH,
+	get_all_five_letter_words,
+	BEST_WEIGHTS_FILE,
+	write_known_anagrams,
 	)
 
 letter_frequencies = get_letter_frequencies()
@@ -84,7 +86,7 @@ def get_optimal_guess(game, guesses, start_perms_threshold=1):
 		return sorted(res, key=h)
 				  
 	if turns_left in [game.max_guesses - i for i in range(start_perms_threshold)]: # start off with some good guesses to keep the overall permutations down later
-		best_starting_moves = top_guesses.copy()
+		best_starting_moves = BEST_STARTING_WORDS.copy()
 		ordered_best_options = [guess for guess in multi_sort_info_gather(best_starting_moves) if guess not in guesses]
 		logger.debug(f"Best Options while choosing from defined list: {', '.join(ordered_best_options)}")
 		return ordered_best_options[0]
@@ -127,8 +129,8 @@ def get_optimal_guess(game, guesses, start_perms_threshold=1):
 			raise Exception(f"No possible ending words found: {game.game_state}")
 
 
-def try_it_out(word=None, game=None, start_perms_threshold=1):
-	logger = logging.getLogger('try_it_out')
+def run_game(word=None, game=None, start_perms_threshold=1, try_write_known_anagrams=False):
+	logger = logging.getLogger('run_game')
 	tester = game
 
 	if word and not tester:
@@ -150,6 +152,9 @@ def try_it_out(word=None, game=None, start_perms_threshold=1):
 		logger.debug("welp.. that didn't work. Back to the drawing board..")
 		logger.debug(tester.game_state)
 			
+	if try_write_known_anagrams:
+		write_known_anagrams(known_anagrams)
+
 	return guesses, tester.is_game_won()
 
 
@@ -164,7 +169,7 @@ def run_test_and_update_weights(word, heuristics, start_perms_threshold=0, r=0.1
 	did_win = False
 	
 	try:
-		guesses_array, did_win = try_it_out(game=game, start_perms_threshold=start_perms_threshold)
+		guesses_array, did_win = run_game(game=game, start_perms_threshold=start_perms_threshold, try_write_known_anagrams=True)
 	except Exception as e:
 		logger.warning(f"Threw exception {e} on word {word}")
 		did_win = False
@@ -226,7 +231,7 @@ def learn_thresholds_and_weights():
 			game.set_heuristic_weights(heuristics)
 			did_win = False
 			try:
-				guesses_array, did_win = try_it_out(game=game, permutations_thresholds=permutations_thresholds)
+				guesses_array, did_win = run_game(game=game, permutations_thresholds=permutations_thresholds)
 			except Exception as e:
 				logger.warning(f"Threw exception {e} on word {word}")
 				did_win = False
