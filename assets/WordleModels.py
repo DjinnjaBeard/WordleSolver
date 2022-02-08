@@ -1,19 +1,25 @@
-from .. wordle import (
+from WordleAI import (
 		LetterType,
 		letter_type_names,
 		logging,
+		get_letter_frequencies,
+		english_dictionary,
+		defaultdict,
+		letters_by_length
 	)
 
-from collections import defaultdict
+
+
+letter_frequencies = get_letter_frequencies()
 
 _default_heuristics = lambda **kwargs : {
 		'Duplicate Letters': {
 			'function': lambda word: len(word) - len(set(word)), 
-			'weight': 1.0
+			'weight': 0.75
 		},
 		'Reconfirming Gray Letters': {
 			'function': lambda word: sum([1 for letter in word if letter in kwargs.get('gray_letters', set())]), 
-			'weight': 1.0
+			'weight': 5.0
 		},
 		'Reconfirming Yellow Slots': {
 			'function': lambda word: sum([1 for idx, letter in enumerate(word) if letter in kwargs.get('yellow_letter_slots', [set()] * len(word))[idx]]), 
@@ -24,8 +30,8 @@ _default_heuristics = lambda **kwargs : {
 			'weight': 1.0
 		},
 		'Aggregate Letter In-Frequency': {
-			'function': lambda word: 1 - sum([letter_frequencies[letter] for letter in word]) / len(word), 
-			'weight': 100.0
+			'function': lambda word: 1 - sum([letter_frequencies.get(letter, 0.0) for letter in word]) / len(word), 
+			'weight': 3.0
 		},
 		'Bias': {
 			'function': lambda word: 1,
@@ -42,14 +48,16 @@ class WordleGame:
 	max_guesses = 6
 	word_length = 5
 	
-	def __init__(self, heuristics=get_default_heuristics()):
+	def __init__(self, heuristics=get_default_heuristics(), dictionary=english_dictionary):
 		self.logger = logging.getLogger('WordleGame')
 		self.guessed_letters = set()
 		self.yellow_letters = set()
 		self.known_word_slots = [None] * 5
 		self.game_state = []
 		self.yellow_letter_slots = defaultdict(set)
-		self.heuristics = heuristics
+		self.heuristics = get_default_heuristics()
+		self.set_heuristic_weights(heuristics)
+		self.dictionary=dictionary
 	
 	@staticmethod
 	def is_valid_wordle(word, dictionary):
@@ -60,7 +68,7 @@ class WordleGame:
 		
 	def make_guess(self, guess):
 		self.logger.debug(f'Attempting to update game state with word: {guess}')
-		if self.is_valid_wordle(guess) and not self.is_game_over():
+		if self.is_valid_wordle(guess, self.dictionary) and not self.is_game_over():
 			self._update_game_state(guess.lower())
 		else:
 			raise ValueError(f"{guess} is an invalid guess")
@@ -124,7 +132,7 @@ class WordleTesterGame(WordleGame):
 		wordle = ''
 		while not wordle:
 			word = input("What is the wordle, birdle?").lower()
-			if WordleGame.is_valid_wordle(word):
+			if WordleGame.is_valid_wordle(word, self.dictionary):
 				wordle = word
 			else:
 				print(f"{word} is not a valid wordle!")
@@ -143,10 +151,10 @@ class WordleTesterGame(WordleGame):
 			print(f"Letters guessed: {sorted(letters_guessed)}")
 
 			
-	def __init__(self, word):
+	def __init__(self, word, dictionary=english_dictionary, heuristics=get_default_heuristics()):
 		if not WordleGame.is_valid_wordle(word):
 			raise ValueError(f"{word} is not a valid wordle")
-		super().__init__()
+		super().__init__(dictionary=dictionary, heuristics=heuristics)
 		self.logger = logging.getLogger('WordleGame')
 		self.word = word.lower()
 	
@@ -164,17 +172,44 @@ class WordleTesterGame(WordleGame):
 
 
 class WordleInteractiveGame(WordleGame):
-	def __init__(self):
-		super().__init__()
+	def __init__(self, dictionary=english_dictionary, heuristics=get_default_heuristics()):
+		super().__init__(dictionary=dictionary, heuristics=heuristics)
 		self.logger = logging.getLogger('WordleGame')
 		
 	@staticmethod
-	def _parse_guess(guess_string):
-		"""expected input: space-delimited LetterType names"""
-		result = [LetterType[l.upper()] for l in guess_string.split() if l.upper() in letter_type_names]
-		return result
+	def _parse_guess(input_string):
+		logger = logging.getLogger('_parse_guess')
+		modded_string = ''.join(input_string.split()).lower()
+		logger.debug(f"parsing {input_string}")
+			
+		returned = []
+		if not input_string:
+			return returned
+		
+		for length, keys in letters_by_length.items():
+			logger.debug(f"Trying length: {length}")
+			if len(modded_string) >= length:
+				potential_parse = modded_string[:length]
+				logger.debug(f"Trying Potential parse of {modded_string} on inputs {keys}")
+				if potential_parse in keys:
+					logger.debug(f"Found potential parse: {potential_parse}")
+					modded_string = modded_string[length:]
+					returned.append(LetterType[potential_parse.upper()])
+					returned += WordleInteractiveGame._parse_guess(modded_string)
+					return returned
+
+		raise ValueError(f"{input_string} does not parse")
 			
 	def get_guess_result(self, guess):
-		guess_result = [(guess[idx], color) for idx, color in enumerate(WordleInteractiveGame._parse_guess(input(f'What\'s the result of guessing {guess}?')))]
+		successful_parse = False
+		while not successful_parse:
+			try:
+				row_input = input(f'What\'s the result of guessing {guess}?')
+				guess_result = [(guess[idx], color) for idx, color in enumerate(WordleInteractiveGame._parse_guess(row_input))]
+				successful_parse = True
+			except ValueError as e:
+				logger.warning(e)
+
+
 		self.logger.debug(f'Guess Result Parsed as: {", ".join([" : ".join([letter, color.name]) for letter, color in guess_result])}')
 		return guess_result
