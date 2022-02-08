@@ -12,11 +12,17 @@ def read_json_cache(p):
 
 total_permutations = lambda l: len(l)**5
 
-permute_tuples = lambda letters, num_repeats: [*product(letters, repeat=num_repeats)]
+permute_tuples = lambda options, num_repeats: [*product(options, repeat=num_repeats)]
+
+def dict_by_length(words):
+	ret = {}
+	for word in words:
+		ret.setdefault(len(word), []).append(word)
+	return ret
 
 
 def valid_words(letters, dictionary, known_anagrams):
-	avail_letters = list(letters)
+	avail_letters = tuple(letters)
 	if avail_letters in known_anagrams:
 		return known_anagrams[str(avail_letters)]
 	else:
