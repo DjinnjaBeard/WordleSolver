@@ -22,11 +22,11 @@ _default_heuristics = lambda **kwargs : {
 			'weight': 5.0
 		},
 		'Reconfirming Yellow Slots': {
-			'function': lambda word: sum([1 for idx, letter in enumerate(word) if letter in kwargs.get('yellow_letter_slots', [set()] * len(word))[idx]]), 
+			'function': lambda word: sum([1 for idx, letter in enumerate(list(word)) if letter in kwargs.get('yellow_letter_slots', defaultdict(set))[idx]]), 
 			'weight': 1.0
 		},
 		'Reconfirming Green Letters': {
-			'function': lambda word: sum([1 for idx, letter in enumerate(word) if letter == kwargs.get('known_slots', [None] * idx)[idx]]), 
+			'function': lambda word: sum([1 for idx, letter in enumerate(list(word)) if letter == kwargs.get('known_slots', [None] * idx)[idx]]), 
 			'weight': 1.0
 		},
 		'Aggregate Letter In-Frequency': {
@@ -41,7 +41,7 @@ _default_heuristics = lambda **kwargs : {
 def get_default_heuristics(): 
 	return _default_heuristics(
 		gray_letters=set(), 
-		yellow_letter_slots=set(), 
+		yellow_letter_slots=defaultdict(set), 
 		known_slots=[None] * 5)
 
 class WordleGame:
