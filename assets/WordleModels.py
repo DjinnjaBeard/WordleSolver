@@ -152,7 +152,7 @@ class WordleTesterGame(WordleGame):
 
 			
 	def __init__(self, word, dictionary=english_dictionary, heuristics=get_default_heuristics()):
-		if not WordleGame.is_valid_wordle(word):
+		if not WordleGame.is_valid_wordle(word, dictionary):
 			raise ValueError(f"{word} is not a valid wordle")
 		super().__init__(dictionary=dictionary, heuristics=heuristics)
 		self.logger = logging.getLogger('WordleGame')
