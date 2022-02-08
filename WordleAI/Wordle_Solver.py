@@ -1,4 +1,5 @@
 from collections import defaultdict
+import json
 
 from WordleAI import (
 		get_letter_frequencies,
@@ -191,7 +192,8 @@ def run_test_and_update_weights(word, heuristics, start_perms_threshold=0, r=0.1
 		
 	return heuristics
 		
-	
+def get_printable_weights(heuristics, outer_join_key='\n\t', inner_join_key=' : '):
+	return outer_join_key + outer_join_key.join([inner_join_key.join([k, str(v['weight'])]) for k, v in heuristics.items()])
 
 def learn_thresholds_and_weights():
 	logger = logging.getLogger('learn_thresholds_and_weights')
@@ -204,10 +206,14 @@ def learn_thresholds_and_weights():
 	training_size = len(training_set)
 	testing_set = shuffled_words[mid_idx:]
 	testing_size = len(testing_set)
-	base_heuristics = WordleGame().get_heuristics()
-	
+	base_heuristics = get_default_heuristics()
+	logger.info(f"Initializing base weights")
 	for x in base_heuristics:
 		base_heuristics[x]['weight'] = random.random()
+		
+	logger.debug(f"Default weights: {get_printable_weights(base_heuristics)}")
+
+	logger.info("Beginning Learning!")
 		
 	for perm_thresh in range(WordleGame.max_guesses - 1):
 		for d in [1.0, 0.1, 0.01, 0.001]:
@@ -216,17 +222,25 @@ def learn_thresholds_and_weights():
 			heuristics = base_heuristics.copy()
 			
 			for idx, word in enumerate(random.sample(training_set, k=training_size)):
+				logger.debug(f"Running {idx}th test on word {word}")
 				r = r_0 / (1 + d*idx)
 				heuristics = run_test_and_update_weights(word, heuristics, perm_thresh, r)
+				logger.debug(f"new weights: {get_printable_weights(heuristics)}")
 				
 				if idx + 1 % 100 == 0: logger.info(f"{(idx / training_size):.2%} of the way done training!")
 				
 			ending_heuristic_by_params[(perm_thresh, d)] = heuristics
+			logger.info(f"final heuristics for permutation_threshold {perm_thresh} and decay rate {d}")
+			
+			logger.info(f"{get_printable_weights(heuristics)}")
 	
 	logger.info("Finally done training. Now to testing??")
 	
 	for (thresh, d), heuristics in ending_huristic.items():
+		logger.info(f"started testing on permutation threshold {thresh} and decay_rate {d}")
+		logger.info(f"Heuristics: {get_printable_weights(heuristics)}")
 		for idx, word in enumerate(sample(testing_set, k=testing_size)):
+			logger.info(f"Running {idx}th test on word {word}")
 			game = WordleTesterGame(word)
 			game.set_heuristic_weights(heuristics)
 			did_win = False
@@ -235,7 +249,7 @@ def learn_thresholds_and_weights():
 			except Exception as e:
 				logger.warning(f"Threw exception {e} on word {word}")
 				did_win = False
-				
+			logger.debug(f"Did we win? {did_win}")
 			best_thresh_decay[(thresh, d)] += 1 if did_win else 0
 			
 			if idx + 1 % 100 == 0: logger.info(f"{(idx / testing_size):.2%} of the way done testing!")
