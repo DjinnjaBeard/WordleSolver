@@ -256,6 +256,7 @@ def output_best_weights():
 
 
 def main():
+	output_best_weights()
 	
 
 if __name__ == '__main__':
