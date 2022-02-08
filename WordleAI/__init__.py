@@ -1,8 +1,13 @@
 import enchant as e
 import logging
 from enum import Enum, auto
+import random
+from collections import defaultdict
+from itertools import groupby
+from utils import dict_by_length
 
 logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
 
 random.seed(42069)
 
@@ -19,6 +24,17 @@ class LetterType(Enum):
 	N = 3
 
 letter_type_names = [name for name in LetterType.__members__]
+
+letter_type_aliases = {
+	enum_group.name: list(aliases) 
+	for 
+		enum_group, aliases 
+	in groupby(
+		LetterType.__members__, 
+		lambda k: LetterType.__members__[k]
+	)}
+
+letters_by_length = dict(sorted(dict_by_length([t.lower() for t in letter_type_names]).items(), key=lambda x: x[0], reverse=True))
 
 default_letter_frequencies = {
 		'a': 20.5,
@@ -48,6 +64,29 @@ default_letter_frequencies = {
 		'y': 3.8,
 		'z': 0.6        
 }
+
+BEST_STARTING_WORDS = [
+    'react',
+    'adieu',
+    'later',
+    'sired',
+    'tears',
+    'alone',
+    'arise',
+    'about',
+    'atone',
+    'irate',
+    'snare',
+    'cream',
+    'paint',
+    'worse',
+    'sauce',
+    'anime',
+    'prowl',
+    'roast',
+    'drape',
+    'media'
+]
 
 alpha_set = set(default_letter_frequencies.keys())
 
