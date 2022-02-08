@@ -6,7 +6,7 @@ from collections import defaultdict
 from itertools import groupby
 from utils import dict_by_length
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 # logging.basicConfig(level=logging.DEBUG)
 
 random.seed(42069)
