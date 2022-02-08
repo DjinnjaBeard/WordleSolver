@@ -1,4 +1,4 @@
-from ..wordle import (
+from .. wordle import (
 		LetterType,
 		letter_type_names,
 		logging,

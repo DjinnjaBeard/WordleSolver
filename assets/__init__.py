@@ -1,4 +1,4 @@
-from ..utils import (
+from .. utils import (
 	write_json_cache, 
 	read_json_cache,
 	valid_words)
