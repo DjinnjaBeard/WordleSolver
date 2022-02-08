@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import random
 
-from . wordle import (
+from WordleAI import (
 		get_letter_frequencies,
 		logging,
 		english_dictionary,
@@ -130,8 +130,12 @@ def get_optimal_guess(game, guesses, start_perms_threshold=1):
 def try_it_out(word=None, game=None, start_perms_threshold=1):
 	logger = logging.getLogger('try_it_out')
 	tester = game
+
 	if word and not tester:
 		tester = WordleTesterGame(word)
+	elif not tester:
+		tester = WordleInteractiveGame
+
 	guesses = []
 	while not tester.is_game_over():
 		best_guess = get_optimal_guess(tester, guesses, start_perms_threshold=start_perms_threshold)
@@ -237,40 +241,18 @@ def output_best_weights():
 	logger = logging.getLogger('output_best_weights')
 	learned_heuristics, best_params = learn_thresholds_and_weights()
 
-	print(learned_heuristics)
-	print(best_params)
 	best_thresh, best_decay = max(best_params, key=best_params.get)
 	best_heuristic = learned_heuristics[best_params]
-	print(f"The best hyper-params are:\nThreshold: {best_thresh}\nDecay Rate: {best_decay}")
+	logger.info(f"The best hyper-params are:\nThreshold: {best_thresh}\nDecay Rate: {best_decay}")
 	join_key = '\n\t'
-	print(f"The Best Heuristic weights are:\n\t{join_key.join([':'.join([name, h['weight']]) for name, h in best_heuristic.items()])}")   
+	logger.info(f"The Best Heuristic weights are:\n\t{join_key.join([':'.join([name, h['weight']]) for name, h in best_heuristic.items()])}")   
 	
-	
+	logger.info(f"Writing Best Heuristic Weights to '{BEST_WEIGHTS_PATH}'")
 	best_heuristic_weights = {}
 	for k in best_heuristic:
 		best_heuristic_weights[k] = best_heuristic[k]['weight']
 	write_json_cache(best_heuristic_weights, BEST_WEIGHTS_PATH)
 
 
-
-def main():
-	output_best_weights()
-	
-
 if __name__ == '__main__':
-	main()
-
-
-# ## Playground
-
-# In[ ]:
-
-
-# logging.basicConfig(level=logging.INFO)
-# logging.getLogger('get_optimal_guess').setLevel(logging.INFO)
-# logging.getLogger('get_optimal_guess').setLevel(logging.DEBUG)
-
-# logging.getLogger('WordleGame').setLevel(logging.INFO)
-# logging.getLogger('WordleGame').setLevel(logging.DEBUG)
-
-# try_it_out(permutations_threshold=3)
+	output_best_weights()
