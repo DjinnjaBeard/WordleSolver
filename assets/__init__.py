@@ -31,4 +31,4 @@ def get_all_five_letter_words(alphabet, dictionary, known_anagrams):
 	return all_five_letter_words
 
 def write_known_anagrams(anagrams):
-	write_json_cache(anagrams, ANAGRMS_FILE)
+	write_json_cache(anagrams, ANAGRAMS_FILE)
