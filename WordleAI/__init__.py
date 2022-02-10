@@ -1,17 +1,15 @@
-import enchant as e
 import logging
 from enum import Enum, auto
 import random
 from collections import defaultdict
 from itertools import groupby
-from utils import dict_by_length
+from utils import dict_by_length, PrintColors
+from assets import (
+	alphabet,
+	)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+logging.basicConfig(level=logging.INFO, format='[ %(asctime)s ] %(name)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 # logging.basicConfig(level=logging.DEBUG)
-
-random.seed(42069)
-
-english_dictionary = e.Dict("en_US")
 
 class LetterType(Enum):
 	GRAY = 1
@@ -23,7 +21,9 @@ class LetterType(Enum):
 	GN = 3
 	N = 3
 
-letter_type_names = [name for name in LetterType.__members__]
+base_letter_types = (name for name, member in LetterType.__members__.items() if member.name == name)
+
+letter_type_names = (name for name in LetterType.__members__)
 
 letter_type_aliases = {
 	enum_group.name: list(aliases) 
@@ -33,6 +33,11 @@ letter_type_aliases = {
 		LetterType.__members__, 
 		lambda k: LetterType.__members__[k]
 	)}
+
+color_mapping = {
+	LetterType.GRAY: PrintColors.BLACK, 
+	LetterType.YELLOW: PrintColors.YELLOW,
+	LetterType.GREEN: PrintColors.GREEN}
 
 letters_by_length = dict(sorted(dict_by_length([t.lower() for t in letter_type_names]).items(), key=lambda x: x[0], reverse=True))
 
@@ -88,7 +93,7 @@ BEST_STARTING_WORDS = [
     'media'
 ]
 
-alpha_set = set(default_letter_frequencies.keys())
+alpha_set = set(alphabet)
 
 def get_letter_frequencies(smoothing_amt=0):
 	new_frequencies = default_letter_frequencies.copy()

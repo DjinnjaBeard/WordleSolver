@@ -3,10 +3,10 @@ from WordleAI import (
 		letter_type_names,
 		logging,
 		get_letter_frequencies,
-		english_dictionary,
 		defaultdict,
 		letters_by_length
 	)
+from assets import wordle_accepted_dictionary
 
 
 
@@ -47,9 +47,10 @@ def get_default_heuristics():
 class WordleGame:
 	max_guesses = 6
 	word_length = 5
-	
-	def __init__(self, heuristics=get_default_heuristics(), dictionary=english_dictionary):
-		self.logger = logging.getLogger('WordleGame')
+	guesses_per_add = 5
+	logger = logging.getLogger('WordleGame')
+	def __init__(self, heuristics=get_default_heuristics(), dictionary=wordle_accepted_dictionary):
+		
 		self.guessed_letters = set()
 		self.yellow_letters = set()
 		self.known_word_slots = [None] * 5
@@ -58,16 +59,20 @@ class WordleGame:
 		self.heuristics = get_default_heuristics()
 		self.set_heuristic_weights(heuristics)
 		self.dictionary=dictionary
+		self.learnable_guesses = set()
+		self.num_guesses = 0
+
 	
 	@staticmethod
 	def is_valid_wordle(word, dictionary):
+		WordleGame.logger.debug(f"word: '{word}', in dictionary: {dictionary.check(word.lower())}, isalpha: {word.isalpha()}, good length: {len(word) == WordleGame.word_length}")
 		return (dictionary.check(word.lower())
 			and word.isalpha() 
 			and len(word) == WordleGame.word_length)
 		
 		
 	def make_guess(self, guess):
-		self.logger.debug(f'Attempting to update game state with word: {guess}')
+		WordleGame.logger.debug(f'Attempting to update game state with word: {guess}')
 		if self.is_valid_wordle(guess, self.dictionary) and not self.is_game_over():
 			self._update_game_state(guess.lower())
 		else:
@@ -76,25 +81,26 @@ class WordleGame:
 		return (self.game_state, self.guessed_letters)
 	
 	def _update_game_state(self, guess):
-		self.logger.debug(f'Updating Game State with guess: {guess}')
+		self.num_guesses += 1
+		WordleGame.logger.debug(f'Updating Game State with guess: {guess}')
 		self.guessed_letters.update(guess)
-		self.logger.debug(f'New guessed letters: {self.guessed_letters}')
+		WordleGame.logger.debug(f'New guessed letters: {self.guessed_letters}')
 		guess_result = self.get_guess_result(guess)
 		self.game_state.append(guess_result)
 		
 		for idx, (letter, letter_type) in enumerate(guess_result):
-			self.logger.debug(f'Result data for letter {letter} @ idx {idx}: {letter_type.name}')
+			WordleGame.logger.debug(f'Result data for letter {letter} @ idx {idx}: {letter_type.name}')
 			match letter_type:
 				case LetterType.YELLOW:
-					self.logger.debug('Letter was marked as yellow')
+					WordleGame.logger.debug('Letter was marked as yellow')
 					self.yellow_letters.add(letter)
 					self.yellow_letter_slots[idx].add(letter)
 				case LetterType.GREEN:
-					self.logger.debug('Letter was marked as green')
+					WordleGame.logger.debug('Letter was marked as green')
 					self.known_word_slots[idx] = letter
 					self.yellow_letters.add(letter)
 				case _:
-					self.logger.debug('Letter was marked as gray')
+					WordleGame.logger.debug('Letter was marked as gray')
 					continue
 
 	def get_heuristics(self):
@@ -107,6 +113,12 @@ class WordleGame:
 		self.heuristics = new_heuristics
 		self.set_heuristic_weights(old_heuristics)
 		return self.heuristics
+
+	def add_learnable_guesses(self, gs):
+		self.learnable_guesses.update(gs[:min(len(gs), WordleGame.guesses_per_add)])
+
+	def get_learnable_guesses(self):
+		return list(self.learnable_guesses)
 	
 	def set_heuristic_weights(self, new_heuristics):
 		for h in self.heuristics:
@@ -119,7 +131,7 @@ class WordleGame:
 		return all([x for x in self.known_word_slots])
 	
 	def is_game_lost(self):
-		return len(self.game_state) >= self.max_guesses
+		return self.num_guesses >= WordleGame.max_guesses
 	
 	def is_game_over(self):
 		return self.is_game_won() or self.is_game_lost()
@@ -135,7 +147,7 @@ class WordleTesterGame(WordleGame):
 			if WordleGame.is_valid_wordle(word, self.dictionary):
 				wordle = word
 			else:
-				print(f"{word} is not a valid wordle!")
+				WordleGame.logger.warning(f"{word} is not a valid wordle!")
 				
 		tester = WordleTesterGame(wordle)
 		while not tester.is_game_over():
@@ -147,15 +159,14 @@ class WordleTesterGame(WordleGame):
 				print(f"That's it! '{guess}' was the word!")
 				break
 				
-			print(f"Game State: {current_state}")
-			print(f"Letters guessed: {sorted(letters_guessed)}")
+			WordleGame.logger.debug(f"Game State: {current_state}")
+			WordleGame.logger.debug(f"Letters guessed: {sorted(letters_guessed)}")
 
 			
-	def __init__(self, word, dictionary=english_dictionary, heuristics=get_default_heuristics()):
+	def __init__(self, word, dictionary=wordle_accepted_dictionary, heuristics=get_default_heuristics()):
 		if not WordleGame.is_valid_wordle(word, dictionary):
 			raise ValueError(f"{word} is not a valid wordle")
 		super().__init__(dictionary=dictionary, heuristics=heuristics)
-		self.logger = logging.getLogger('WordleGame')
 		self.word = word.lower()
 	
 	def get_guess_result(self, guess):
@@ -172,9 +183,8 @@ class WordleTesterGame(WordleGame):
 
 
 class WordleInteractiveGame(WordleGame):
-	def __init__(self, dictionary=english_dictionary, heuristics=get_default_heuristics()):
+	def __init__(self, dictionary=wordle_accepted_dictionary, heuristics=get_default_heuristics()):
 		super().__init__(dictionary=dictionary, heuristics=heuristics)
-		self.logger = logging.getLogger('WordleGame')
 		
 	@staticmethod
 	def _parse_guess(input_string):
@@ -208,8 +218,8 @@ class WordleInteractiveGame(WordleGame):
 				guess_result = [(guess[idx], color) for idx, color in enumerate(WordleInteractiveGame._parse_guess(row_input))]
 				successful_parse = True
 			except ValueError as e:
-				logger.warning(e)
+				WordleGame.logger.warning(e)
 
 
-		self.logger.debug(f'Guess Result Parsed as: {", ".join([" : ".join([letter, color.name]) for letter, color in guess_result])}')
+		WordleGame.logger.debug(f'Guess Result Parsed as: {", ".join([" : ".join([letter, color.name]) for letter, color in guess_result])}')
 		return guess_result
